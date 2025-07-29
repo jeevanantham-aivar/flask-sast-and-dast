@@ -43,6 +43,7 @@ jobs:
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
+
       - name: Update ECS service
         run: |
           aws ecs update-service \
