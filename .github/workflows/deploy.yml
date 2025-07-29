@@ -60,7 +60,7 @@ env:
   ECR_REPOSITORY: flask-ecr-repo
   ECS_CLUSTER: flask-ecs-cluster
   ECS_SERVICE: flask-ecs-service
-  ECS_APP_URL: http://<your-load-balancer-dns>  # ← Replace this
+  ECS_APP_URL: http://flask-alb-1032004274.ap-south-1.elb.amazonaws.com
 
 jobs:
   deploy:
