@@ -9,7 +9,7 @@ env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY: flask-ecr-repo
   ECS_CLUSTER: flask-ecs-cluster
-  ECS_SERVICE: flask-ecs-task-service-04lz7sta
+  ECS_SERVICE: flask-ecs-task-service-cgbcu9wy
   ECS_TASK_DEFINITION: flask-ecs-task
 
 jobs:
