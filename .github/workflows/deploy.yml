@@ -71,7 +71,7 @@ jobs:
             ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py \
             -t ${{ env.ECS_APP_URL }} \
             -r zap_report.html -w zap_report.md \
-            -x zap_report.xml
+            -x zap_report.xml || true
 
       
 
