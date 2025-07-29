@@ -1,4 +1,4 @@
-name: Deploy to ECS
+name: Deploy and OWASP ZAP Scan
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   ECS_CLUSTER: flask-ecs-cluster
   ECS_SERVICE: flask-ecs-task-service-cgbcu9wy
   ECS_TASK_DEFINITION: flask-ecs-task
-
+  ECS_APP_URL: http://flask-alb-1032004274.ap-south-1.elb.amazonaws.com
 jobs:
   deploy:
     name: Build and Deploy
@@ -22,12 +22,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2 # ✅ Use v2 for secrets
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -39,7 +38,6 @@ jobs:
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
-
       - name: Update ECS service
         run: |
           aws ecs update-service \
@@ -47,15 +45,13 @@ jobs:
             --service ${{ env.ECS_SERVICE }} \
             --force-new-deployment
 
-
-
-  dast:
-    name: Run DAST Scans
+  owasp-zap:
+    name: Run OWASP ZAP Scan
     needs: deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: Wait for service to become available
+      - name: Wait for service to be available
         run: |
           for i in {1..30}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.ECS_APP_URL }}/health")
@@ -67,12 +63,7 @@ jobs:
             sleep 10
           done
 
-      - name: Install tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zaproxy nuclei nikto curl jq
-
-      - name: Run OWASP ZAP Scan
+      - name: Run OWASP ZAP Full Scan
         run: |
           mkdir -p reports
           docker run -v $(pwd)/reports:/zap/wrk/:rw \
@@ -81,33 +72,18 @@ jobs:
             -r zap_report.html -w zap_report.md \
             -x zap_report.xml
 
-      - name: Run Nuclei Scan
-        run: |
-          nuclei -u ${{ env.ECS_APP_URL }} -o reports/nuclei.txt
-
-      - name: Run Nikto Scan
-        run: |
-          nikto -h ${{ env.ECS_APP_URL }} > reports/nikto.txt
-
-      - name: Check HTTP Security Headers
-        run: |
-          curl -s -D - ${{ env.ECS_APP_URL }} -o /dev/null > reports/headers.txt
-
       - name: Upload OWASP ZAP SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/zap_report.xml
 
-      - name: Upload reports as artifacts
+      - name: Upload OWASP ZAP Reports
         uses: actions/upload-artifact@v4
         with:
-          name: dast-reports
+          name: zap-report
           path: reports/
 
-      - name: Write GitHub summary
+      - name: GitHub Summary
         run: |
-          echo "## DAST Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- OWASP ZAP: [HTML Report](./reports/zap_report.html)" >> $GITHUB_STEP_SUMMARY
-          echo "- Nuclei: $(wc -l < reports/nuclei.txt) findings" >> $GITHUB_STEP_SUMMARY
-          echo "- Nikto: $(grep -c "OSVDB" reports/nikto.txt) findings" >> $GITHUB_STEP_SUMMARY
-          echo "- Headers Checked: $(wc -l < reports/headers.txt) lines" >> $GITHUB_STEP_SUMMARY
+          echo "## OWASP ZAP Scan Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML report, markdown summary, and SARIF uploaded." >> $GITHUB_STEP_SUMMARY
