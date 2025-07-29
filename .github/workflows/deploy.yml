@@ -1,54 +1,4 @@
-# name: Deploy to ECS
-
-# on:
-#   push:
-#     branches:
-#       - main
-
-# env:
-#   AWS_REGION: ap-south-1
-#   ECR_REPOSITORY: flask-ecr-repo
-#   ECS_CLUSTER: flask-ecs-cluster
-#   ECS_SERVICE: flask-ecs-task-service-04lz7sta
-#   ECS_TASK_DEFINITION: flask-ecs-task
-
-# jobs:
-#   deploy:
-#     name: Build and Deploy
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v2 # ✅ Use v2 for secrets
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ env.AWS_REGION }}
-
-
-#       - name: Login to Amazon ECR
-#         id: login-ecr
-#         uses: aws-actions/amazon-ecr-login@v2
-
-#       - name: Build, tag, and push image
-#         run: |
-#           IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
-#           docker build -t $IMAGE_URI .
-#           docker push $IMAGE_URI
-
-
-#       - name: Update ECS service
-#         run: |
-#           aws ecs update-service \
-#             --cluster ${{ env.ECS_CLUSTER }} \
-#             --service ${{ env.ECS_SERVICE }} \
-#             --force-new-deployment
-
-
-name: Deploy and DAST Scan
+name: Deploy to ECS
 
 on:
   push:
@@ -59,8 +9,8 @@ env:
   AWS_REGION: ap-south-1
   ECR_REPOSITORY: flask-ecr-repo
   ECS_CLUSTER: flask-ecs-cluster
-  ECS_SERVICE: flask-ecs-service
-  ECS_APP_URL: http://flask-alb-1032004274.ap-south-1.elb.amazonaws.com
+  ECS_SERVICE: flask-ecs-task-service-04lz7sta
+  ECS_TASK_DEFINITION: flask-ecs-task
 
 jobs:
   deploy:
@@ -72,28 +22,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v2 # ✅ Use v2 for secrets
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
+      - name: Build, tag, and push image
         run: |
           IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
-      - name: Force ECS service redeploy
+
+      - name: Update ECS service
         run: |
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
             --force-new-deployment
+
+
 
   dast:
     name: Run DAST Scans
