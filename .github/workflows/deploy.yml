@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+permissions:
+  security-events: write
+  contents: read
 
 env:
   AWS_REGION: ap-south-1
@@ -62,25 +65,37 @@ jobs:
             echo "Waiting for service... ($i)"
             sleep 10
           done
-
-      - name: Run OWASP ZAP Scan
+      - name: Run OWASP ZAP Baseline Scan and Generate SARIF
         run: |
           mkdir -p reports
-          docker run --user root \
-            -v $(pwd)/reports:/zap/wrk/:rw \
-            ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py \
+          docker run --rm -v $(pwd)/reports:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t ${{ env.ECS_APP_URL }} \
-            -r zap_report.html -w zap_report.md \
-            -x zap_report.xml || true
+            -x zap-output.sarif.json
+
+      - name: Upload OWASP ZAP SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/zap-output.sarif.json
+
+      # - name: Run OWASP ZAP Scan
+      #   run: |
+      #     mkdir -p reports
+      #     docker run --user root \
+      #       -v $(pwd)/reports:/zap/wrk/:rw \
+      #       ghcr.io/zaproxy/zaproxy:stable zap-full-scan.py \
+      #       -t ${{ env.ECS_APP_URL }} \
+      #       -r zap_report.html -w zap_report.md \
+      #       -x zap_report.xml || true
     
 
-      - name: Upload OWASP ZAP Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report
-          path: reports/
+      # - name: Upload OWASP ZAP Reports
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: zap-report
+      #     path: reports/
 
-      - name: GitHub Summary
-        run: |
-          echo "## OWASP ZAP Scan Completed" >> $GITHUB_STEP_SUMMARY
-          echo "- HTML report, markdown summary, and SARIF uploaded." >> $GITHUB_STEP_SUMMARY
+      # - name: GitHub Summary
+      #   run: |
+      #     echo "## OWASP ZAP Scan Completed" >> $GITHUB_STEP_SUMMARY
+      #     echo "- HTML report, markdown summary, and SARIF uploaded." >> $GITHUB_STEP_SUMMARY
