@@ -72,13 +72,7 @@ jobs:
             -t ${{ env.ECS_APP_URL }} \
             -r zap_report.html -w zap_report.md \
             -x zap_report.xml || true
-
-      
-
-      - name: Upload OWASP ZAP SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: reports/zap_report.xml
+    
 
       - name: Upload OWASP ZAP Reports
         uses: actions/upload-artifact@v4
